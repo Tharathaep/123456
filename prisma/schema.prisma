@@ -1,0 +1,165 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+enum UserRole {
+  STUDENT
+  COMPANY
+  ADMIN
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum InternshipStatus {
+  ACTIVE
+  INACTIVE
+  COMPLETED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  role          UserRole
+  password      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Student specific fields
+  studentId     String?   @unique
+  major         String?
+  year          Int?
+  resume        String?   // URL to resume file
+  gpa           Float?
+  
+  // Company specific fields
+  companyName   String?
+  companyAddress String?
+  contactPerson String?
+  phone         String?
+  website       String?
+  
+  // Admin specific fields
+  department    String?
+  position      String?
+
+  // Relations
+  internships   Internship[]    @relation("CompanyInternships")
+  applications  Application[]
+  progressReports ProgressReport[]
+  evaluations   Evaluation[]
+
+  @@map("users")
+}
+
+model Internship {
+  id              String           @id @default(cuid())
+  title           String
+  description     String
+  requirements    String
+  duration        String
+  stipend         String?
+  location        String
+  startDate       DateTime
+  endDate         DateTime
+  maxApplicants   Int              @default(10)
+  status          InternshipStatus @default(ACTIVE)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  // Relations
+  companyId       String
+  company         User             @relation("CompanyInternships", fields: [companyId], references: [id])
+  applications    Application[]
+
+  @@map("internships")
+}
+
+model Application {
+  id              String            @id @default(cuid())
+  coverLetter     String
+  resume          String            // URL to resume file
+  transcript      String?           // URL to transcript file
+  status          ApplicationStatus @default(PENDING)
+  appliedAt       DateTime          @default(now())
+  reviewedAt      DateTime?
+  notes           String?
+  
+  // Relations
+  studentId       String
+  student         User              @relation(fields: [studentId], references: [id])
+  internshipId    String
+  internship      Internship        @relation(fields: [internshipId], references: [id])
+  progressReports ProgressReport[]
+  evaluations     Evaluation[]
+
+  @@unique([studentId, internshipId])
+  @@map("applications")
+}
+
+model ProgressReport {
+  id              String    @id @default(cuid())
+  week            Int
+  title           String
+  content         String
+  hoursWorked     Float
+  challenges      String?
+  achievements    String?
+  nextWeekPlan    String?
+  submittedAt     DateTime  @default(now())
+  approvedAt      DateTime?
+  approvedBy      String?
+  
+  // Relations
+  applicationId   String
+  application     Application @relation(fields: [applicationId], references: [id])
+  studentId       String
+  student         User        @relation(fields: [studentId], references: [id])
+
+  @@map("progress_reports")
+}
+
+model Evaluation {
+  id              String    @id @default(cuid())
+  technicalSkills Int       // 1-5 rating
+  communication   Int       // 1-5 rating
+  teamwork        Int       // 1-5 rating
+  initiative      Int       // 1-5 rating
+  overallRating   Int       // 1-5 rating
+  comments        String
+  evaluatedAt     DateTime  @default(now())
+  
+  // Relations
+  applicationId   String
+  application     Application @relation(fields: [applicationId], references: [id])
+  evaluatorId     String
+  evaluator       User        @relation(fields: [evaluatorId], references: [id])
+
+  @@map("evaluations")
+}
+
+model Announcement {
+  id          String    @id @default(cuid())
+  title       String
+  content     String
+  type        String    // "GENERAL", "COMPANY", "STUDENT"
+  priority    String    @default("NORMAL") // "LOW", "NORMAL", "HIGH", "URGENT"
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("announcements")
+}
